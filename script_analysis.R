@@ -4,6 +4,7 @@ install.packages("tm")
 install.packages("lubridate")
 install.packages("scales")
 
+
 library(readr)
 library(dplyr)
 library(tm)
@@ -13,6 +14,7 @@ library(tidytext)
 library(scales)
 library(tidyr)
 library(forcats) #2nd on#tf-df
+
 
 
 
@@ -33,12 +35,6 @@ write_csv(guardian_nyt_df, "D:/University of Plymouth/MATH513-Big Data and Socia
 #guardian_nyt_df <- read_csv("D:/University of Plymouth/MATH513-Big Data and Social Network Visualization/Coursework Submission/Assesment/Guardians and NYT article analysis/Guardians_and_NYT_article_analysis/NYT_Russia_Ukraine.csv")
 
 
-tokenize_remove_stopwords <- function(text){
-  articles_tokenized = article_data %>%
-    unnest_tokens(word, articles) %>%
-    anti_join(stop_words)
-}
-guardian_nyt_df$articles_tokenized <- lapply(guardian_nyt_df$articles, tokenize_remove_stopwords)
 
 
 
@@ -56,7 +52,7 @@ guardian_nyt_df$articles_tokenized <- lapply(guardian_nyt_df$articles, tokenize_
     unnest_tokens(word, articles) %>%
     anti_join(stop_words)
   
-  specific_words <- c("civilians", "country","putin","zelensky","biden","nato","russia","ukraine","war", "weapons")
+  specific_words <- c("civilians", "country","putin","biden","nato","russia","ukraine","war", "weapons")
   
   # Work out percentages for each date using the dplyr package
   proportions = articles_tokenized %>%
@@ -83,44 +79,91 @@ guardian_nyt_df$articles_tokenized <- lapply(guardian_nyt_df$articles, tokenize_
     scale_x_datetime(labels = scales::date_format(" %b "),
                      limits = c(min(proportions$published) - 1, max(proportions$published) + 1)) +
     scale_y_continuous(labels = label_percent(scale = 100)) +  # Format y-axis as percentage
-    theme(legend.position = "none")
+    theme(legend.position = "below")
+  
   
 
 
-########################################
-
-
-  
-article_data = read_csv("D:/University of Plymouth/MATH513-Big Data and Social Network Visualization/Coursework Submission/Assesment/Guardians and NYT article analysis/Guardians_and_NYT_article_analysis/combined_Russia_Ukraine_articles.csv")
- 
-  # Tokenize the articles, remove stopwords
-  articles_tokenized <- article_data %>%
-    unnest_tokens(word, articles) %>%
-    anti_join(stop_words)
-  # Calculate tf-idf
-  tfidf_data <- articles_tokenized %>%
-    count(journal, word) %>%
-    bind_tf_idf(word, journal, n)
-  
-  
-  # Extract top 10 tf-idf words for each journal
-  top_tfidf_words <- tfidf_data %>%
-    group_by(journal) %>%
-    top_n(10, wt = tf_idf) %>%
-    ungroup() %>%
-    arrange(journal, desc(tf_idf)) %>%
-    mutate(word = fct_inorder(word))  # Set factor levels in the order they appear
-  
-  # Plot the top tf-idf words
-  ggplot(top_tfidf_words, aes(x = reorder(word, tf_idf), y = tf_idf, fill = journal)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~journal, scales = "free") +
-    coord_flip() +
-    labs(title = "Highest tf-idf Words in Ukraine war articles in 2022", x = "", y = "tf−idf index") +
-    theme(legend.position = "none",
-          axis.text.y = element_text(size = 8))
-         
-  
 
  
+  
  
+#########################
+    
+    
+   
+    
+    # Define the column names as strings
+    articles_column <- "articles" # replace with your actual column name
+    journal_column <- "journal" # replace with your actual column name
+    
+    
+    
+    # Tokenize the articles, remove stopwords
+    tfidf_data <- article_data%>%
+      mutate(articles = as.character(articles)) %>%
+      unnest_tokens(word, articles) %>%
+      anti_join(stop_words, by = "word") %>%
+      count(journal, word) %>%
+      group_by(journal) %>%
+      bind_tf_idf(word, journal, n)
+    
+    # Extract top 10 tf-idf words for each journal
+    top_tfidf_words <- tfidf_data %>%
+      group_by(journal) %>%
+      slice_max(tf_idf, n = 10, with_ties = TRUE) %>%
+      ungroup()
+    
+    # Reorder words based on tf-idf for plotting
+    top_tfidf_words <- top_tfidf_words %>%
+      arrange(journal, desc(tf_idf)) %>%
+      mutate(word = fct_reorder(word, tf_idf))
+    
+    # Plot the top tf-idf words
+    ggplot(top_tfidf_words, aes(x = word, y = tf_idf, fill = journal)) +
+      geom_col(show.legend = FALSE) +
+      facet_wrap(~journal, scales = "free") +
+      coord_flip() +
+      labs(title = "Highest tf-idf Words in Ukraine war articles in 2022", x = "", y = "tf−idf index") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(size = 8))
+    
+  ########################
+    
+   
+    
+    
+    # Tokenize the words
+    zipf_data <- article_data %>%
+      mutate(articles = as.character(articles)) %>%
+      unnest_tokens(word, articles) %>%
+      count(journal, word) %>%
+      bind_tf_idf(word, journal, n)
+    
+    # rank calculation 
+    zipf_data <- zipf_data %>%
+      group_by(journal) %>%
+      arrange(desc(tf)) %>%
+      mutate(rank = row_number()) %>%
+      ungroup()
+    
+    # linear regression analysis
+    regression_results <- lm(log(tf) ~ log(rank), data = zipf_data)
+    
+    # Plot log-log graph with regression line and different colors for each journal
+     ggplot(zipf_data, aes(x = rank, y = tf, color = journal)) +
+      geom_line(size = 1.5) + # Line thickness
+      geom_smooth(method = "lm", size = 1, se = FALSE, color = "black", aes(group = 1)) +
+      scale_x_log10() +
+      scale_y_log10(labels = scales::label_number()) + # Custom labels for y-axis
+      labs(title = "Zipf's Law for Ukraine war articles in 2022 with Linear Regression",
+           x = "World rank",
+           y = "Term Frequency(linear regression)") +
+      
+      theme_minimal() +
+      theme(legend.position = "bottom")
+    
+  
+    
+    
+    
