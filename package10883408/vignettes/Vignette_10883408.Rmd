@@ -1,0 +1,287 @@
+---
+title: "Article Data Analysis and Visualization with Package"
+author: "10883408"
+date: "January 09 2024"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Vignette_10883408}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, include = FALSE}
+library(package10883408)
+library(readr)
+library(dplyr)
+library(tm)
+library(ggplot2)
+library(tidytext)
+library(scales)
+library(tidyr)
+library(forcats)
+```
+
+## **Introduction**
+
+The package_10883408 made for text analysis. It is perfect for researchers because it provides essential features for analysing word frequencies in datasets.It provides below features.
+
+1.  Change of Word Frequency 
+
+2.  TF-IDF Plotting: Locate and highlight important terms in documents.
+
+3.  Apply and investigate Zipf's Law in text data with the Zipf's Law Visualisation tool, which offers options for linear regression analysis. An example dataset of articles published in 2022 about the conflict between Russia and Ukraine is included to show how the package can be used practically to analyse current events in the world.
+
+\newpage
+
+## Combined Data-set Using both article data
+
+```{r data set, message=FALSE}
+library(readr)
+# Read the CSV files
+guardian_df <- read_csv("Guardians_Russia_Ukraine.csv")
+nyt_df <- read_csv("NYT_Russia_Ukraine.csv")
+
+# Add a new column to each DataFrame for the journal source
+guardian_df <- mutate(guardian_df, journal = "The Guardian")
+nyt_df <- mutate(nyt_df, journal = "The New York Times")
+
+# Combine the two DataFrames
+article_data <- bind_rows(guardian_df, nyt_df)
+
+```
+
+```{r execute data set}
+article_data
+```
+
+### Data-set Contents:
+
+-   Time-series data: The data set includes dates and timestamps for each entry, indicating when each article was published.
+
+-   Additional metadata: source of the articles, article titles, and relevant journals
+
+-   Name called article_data made by using Guardians_Russia_Ukraine.csv" and NYT_Russia_Ukraine.csv
+
+-   Journals are from the 2022 New York Times and Guardians about the Russia-Ukraine war.
+\newpage
+
+
+## Change of Word Frequency
+### Analysis
+```{r  word_frequency_plot, warning=FALSE}
+
+word_frequency_plot <- function(article_data, articles) {
+  # Tokenize the articles, remove stopwords
+  articles_tokenized = article_data %>%
+    unnest_tokens(word, articles) %>%
+    anti_join(stop_words)
+
+  specific_words <- c("civilians", "country", "putin", "biden", "nato", "russia","ukraine", "war", "weapons")
+
+  # Work out percentages for each date using the dplyr package
+  proportions = articles_tokenized %>%
+    count(published, word) %>%
+    group_by(published) %>%
+    mutate(p = n / sum(n))
+  # Filter results by word(s)
+  proportions_filtered = proportions %>%
+    filter(word %in% specific_words)
+
+  # Ensure the words are in the custom order
+  proportions_filtered <- proportions %>%
+    filter(word %in% specific_words) %>%
+    mutate(word = factor(word, levels = specific_words))
+
+  # Plot the contents using ggplot2
+  plot <- ggplot(proportions_filtered, aes(x = published, y = p, colour = word, group = word)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, formula = y ~ x, color = "black") +
+    geom_smooth(method = "loess", se = TRUE, formula = y ~ x, linetype = "solid", level = 0.95) +
+    labs(y = "Percentage of words in Ukraine war articles in 2022", x = "Article date") +
+    facet_wrap(~ word, scales = "free_y") +
+    scale_x_datetime(labels = scales::date_format(" %b "),
+                     limits = c(min(proportions$published) - 1, max(proportions$published) + 1)) +
+    scale_y_continuous(labels = label_percent(scale = 100)) +
+    theme(legend.position = "bottom")
+
+  return(plot)
+}
+```
+
+```{r execute word_frequency_plot, warning=FALSE, message=FALSE}
+word_frequency_plot(article_data,specific_words)
+```
+
+### Discussion
+-   Words under consideration include “Civilians”, “Country”, “Putin”, “Biden”, “NATO”, “Russia”, “Civilian” and “Country”
+
+-   Each point in the plot is representative of each proportion of different chosen words during particular dates.
+
+-   Further, a black line is included as the trend line of a linear model that offers another statistical perspective not defined by a confidence interval. This line gives a simple forecast of the growing trend.
+
+### In this illustration, the following patterns emerge:
+
+1.  Civilians: The te­rm "civilians" shows clear patterns of peaks and valle­ys in how often it appears over a ce­rtain period. These ups and downs can be­ seen through a LOESS trend line­, shown in red with a shaded area around it. Importantly, the line­ trends notably upward by the end of the­ timeframe examine­d. This increasing tendency ne­ar the end may connect to more­ focus on civilian matters, mirroring developing talks on the­ir wellbeing, protection, or role­ in the situation looked at.
+
+2.  Country: The te­rm "country" maintains a steady presence­ across the articles, as shown by the orange­ trend line and shaded are­a. This consistent usage over time­ indicates continued attention and re­levance of "country" within the subje­ct matter.
+
+3.  Putin: The me­ntions of "Putin" in the articles follow a fluctuating pattern, as shown by the­ green LOESS trend line­ and shaded area. Unlike the­ stable trend for "war," the wave­s in the "Putin" trend line indicate­ shifting levels of attention and inte­rest across the analyzed pe­riod. This likely connects to current e­vents and talks involving the Russian Preside­nt that capture more or less public focus ove­r time.
+
+4.  Biden: There is a dramatic diversity on the denotation of terms “Biden”, which shows an insignificant upward tendency near to the end of time. The LOESS trend line which has been indicated in green and surrounded by a shaded area signifying the confidence interval shows that topics related to President Biden attain greater importance, presumably against the backdrop of Russia-Ukraine war.
+
+5.  NATO: The word , “NATO” appears to have a reasonably stable use with occasional spikes and lows. The light green LOESS trend line, along with its respective shaded area , suggests a general increase and decrease in attention at various moments that may or possibly correspond to specific incidents or remarks related matters pertaining NATO.
+
+6.  Russia: More notably, the term “Russia” shows an upward trend throughout this timeframe and particularly in its closing stages. This indicates that Russia becomes more significant in the materials written in these articles as time goes by.
+
+7.  Ukraine: You hear the word “Ukraine” quite often with great diversity of variation. Filled area in blue depicts an upward trend line, but there clearly are some fluctuations; nevertheless it shows that Ukraine has been constantly a major subject of reporting.
+
+8.  War: the word “war” keeps rather a low, but permanently observable tendency in articles; this trend line (purple with shaded area) is flat enough. This means rather stable use of the word “war” in the analyzed period.
+
+9.  Weapons: Finally, the word “weapons” shows peaks and valleys, and from reading it as revealed by the LOESS trend line coloured in pink with a shaded area we witness its inclining tendency towards your time period end. This can also be related to the debates that pertained arms supplies or perhaps weapons used in this ongoing conflict.
+
+**In summary:** After this thorough analysis, it is evident that some topics have increased or decreased in importance during the magazines’ span of time. The term Russian is in an increasing direction that implies a growing debate on Russia’s role to play or things they do. On the other hand, “Ukraine” remains significant all along in its bid still as it had been with a role of menace inherent to its involvement. Both words, “NATO” and “weapons,” present itself variable though notable presence without the obligatory association with international or military aspects of a conflict. The monitoring of “Biden” could reflect the position U.S is taking in various political and diplomatic interventions concerning said situation. Regardless of the changing topics, as is evident in adopting different terminologies such as civil strife and foreign intervention, it can clearly be seen that this constant recurrence to denote a term – “war” could only refer back to one thing; that there was indeed present here then more than just heath-rumpeted murmurs concerning an intensified palaver about conflict.
+\newpage
+
+
+## Highest tf-idf Words from Articles
+### Analysis
+
+```{r calculate_and_plot_tfidf, warning=FALSE}
+
+calculate_and_plot_tfidf <- function(article_data, articles, journal) {
+  # Tokenize the articles, remove stopwords
+  tfidf_data <- article_data %>%
+    mutate(articles = as.character(articles)) %>%
+    unnest_tokens(word, articles) %>%
+    anti_join(stop_words, by = "word") %>%
+    count(journal, word) %>%
+    group_by(journal) %>%
+    bind_tf_idf(word, journal, n)
+
+  # Extract top 10 tf-idf words for each journal
+  top_tfidf_words <- tfidf_data %>%
+    group_by(journal) %>%
+    slice_max(tf_idf, n = 10, with_ties = TRUE) %>%
+    ungroup()
+
+  # Reorder words based on tf-idf for plotting
+  top_tfidf_words <- top_tfidf_words %>%
+    arrange(journal, desc(tf_idf)) %>%
+    mutate(word = fct_reorder(word, tf_idf))
+
+  # Plot the top tf-idf words
+  plot <- ggplot(top_tfidf_words, aes(x = word, y = tf_idf, fill = journal)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~journal, scales = "free") +
+    coord_flip() +
+    labs(title = "Highest tf-idf Words in Ukraine war articles in 2022", x = "", y = "tf-idf index") +
+    theme(legend.position = "none",
+          axis.text.y = element_text(size = 8))
+  return(plot)
+}
+
+```
+
+```{r execute calculate_and_plot_tfidf, warning=FALSE, message=FALSE}
+
+calculate_and_plot_tfidf(article_data,"articles","journal")
+```
+
+### Discussion
+
+This function generates a bar graph that ranks words based on their highest term-count inversed document frequency (tf+idf) scores from a collection of texts. It highlights words that are uniquely significant to specific groups of documents. For example, it analyzes terms within articles from The Guardian and the New York Times, spotlighting those terms that are particularly associated with each publication's set of articles.
+
+-   The chart is partitioned into two separate panels, with each panel focusing on a particular journal. 10 words with the highest tf-idf scores in descending order are presented within each panel, and the most meaningful word is at the top.
+
+Things to note about this are: 
+
+1.  Keywords in The Guardian's name include words like "Zelensky", "defence", "UK", etc. which seem to refer to the situation in Ukraine with words like "EU" and "Guardian " is widely present, indicating that the newspaper itself or its specific opinion on the subject has been referred to.
+
+2.   On the other hand, The New York Times (NYT) offers a specific list of top words, including "Zhuhan," "Percent," "Courtney," "Sashko," "Stein," and "EU" Perhaps these words some include individuals or specific cases where The NYT had significant differences in coverage.
+
+**In summary:** On the one hand, The Guardian presents special emphasis on “Zelenskiy” and “defence,” which may be associated with significant attention to the case of Ukraine in a military sense. It is in line with such expectations since Ukraine has been undergoing some geopolitical events. On the one hand, in relation to The New York Times (NYT), a wide range of different proper nouns can only point to an extensive palette of subjects or possibly suggest that highlighting certain stories was especially important for their reporting.
+
+## Zipf's Law Analysis
+### Analysis
+
+```{r plot_zipfs_law, warning=FALSE}
+
+plot_zipfs_law <- function(article_data, articles, journal) {
+  # Tokenize the words
+  zipf_data <- article_data %>%
+    mutate(articles = as.character(articles)) %>%
+    unnest_tokens(word, articles) %>%
+    count(journal, word) %>%
+    bind_tf_idf(word, journal, n)
+
+  # Rank calculation
+  zipf_data <- zipf_data %>%
+    group_by(journal) %>%
+    arrange(desc(tf)) %>%
+    mutate(rank = row_number()) %>%
+    ungroup()
+
+  # Linear regression analysis
+  regression_results <- lm(log(tf) ~ log(rank), data = zipf_data)
+
+  # Plot log-log graph with regression line and different colors for each journal
+  plot <- ggplot(zipf_data, aes(x = rank, y = tf, color = journal)) +
+    geom_line(size = 1.5) +
+    geom_smooth(method = "lm", size = 1, se = FALSE, color = "black", aes(group = 1)) +
+    scale_x_log10() +
+    scale_y_log10(labels = scales::label_number()) +
+    labs(title = "Zipf's Law for Ukraine war articles in 2022 with Linear Regression",
+         x = "Word Rank",
+         y = "Term Frequency (linear regression)") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+
+  return(list(article_data = zipf_data, regression = summary(regression_results), plot = plot))
+}
+```
+
+```{r execute plot_zipfs_law, warning=FALSE, message=FALSE}
+plot_zipfs_law(article_data ,"articles","journal")
+```
+
+### Discussion
+
+The function plot_zipfs_law which processes a dataset of articles to explore the distribution of word frequencies according to Zipf's Law, with a specific focus on articles related to the Ukraine war in 2022. The function takes the dataset (article_data), a column that contains the articles (articles), and a grouping variable for the journal source (journal). Here is a breakdown of the function and the interpretation of the plot and results
+
+**Application of the Linear Regression Model:**The linear regression model is used to fit a line to the log-transformed frequencies and ranks of the words, as per Zipf's Law, which predicts a linear relationship on a log-log scale.
+
+**Intercept (Estimate):** The estimated value of the y-intercept (here, -0.969143) is the point where the regression line crosses the y-axis. 
+
+**Slope (Estimate):** The estimated value of the slope (here, -1.168934) is the rate at which the log-transformed term frequency decreases as the log rank increases. 
+
+**Std. Error:** The standard error measures the average distance that the observed values fall from the regression line. A smaller standard error indicates that the observed data points are closer to the fitted line. In this output, the standard errors for the intercept and slope are 0.014172 and 0.001725, respectively, indicating a high level of precision in the estimates.
+
+**t-value:**The larger the absolute value of the t statistic, the more evidence against the null hypothesis. In this case, the t values are -68.38 for the intercept and -677.52 for the slope, both of which are very high, indicating strong evidence against the null hypothesis of no relationship.
+
+The plot:
+
+1.  The plot e­ffectively demonstrate­s the connection outlined by Zipf's Law, with te­rm frequency on the ve­rtical axis and rank on the horizontal axis, both shown logarithmically.
+
+2.  An analysis of word freque­ncies in the journals reve­als a close adherence­ to Zipf's Law. The log-log plots show an almost linear trend, de­monstrating that the articles follow a typical linguistic distribution of word usage.
+
+3.  The comparable­ slopes of the lines indicate­ that the vocabulary complexity used in re­porting on the Ukraine war is similar across sources. This sugge­sts common vocabulary with a comparable level of dive­rsity.
+
+4.  The consiste­nt patterns across both journals suggest enduring linguistic conve­ntions guiding word choice when addressing the­ same subject, regardle­ss of medium.
+
+In conclusion, the high R-squared value, the high F-statistic, and the extremely low p-value all indicate that the regression model is a very good fit for the data. The negative coefficient for the log(rank) suggests that the term frequency decreases as the rank increases, which is consistent with Zipf's Law. The overall analysis indicates that the word frequency distribution for articles from The Guardian and The New York Times follows the expected pattern of Zipf's Law quite closely. This reinforces the principle that in a large corpus of natural language, the most common words tend to be distributed in a predictable manner.
+
+
+## Conclusion of Analysis
+
+This document represents the culmination of an extensive analytical review, utilizing data primarily sourced from articles published by The Guardian and The New York Times in 2022, with the generous provision of the University of Plymouth. The dataset has been critically analyzed utilizing the functionalities of package10883408, enabling a comprehensive exploration and understanding of the underlying patterns and trends. The insights derived from this analysis are intended to contribute to the broader discourse in the respective field of study.

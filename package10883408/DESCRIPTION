@@ -1,0 +1,30 @@
+Package: package10883408
+Type: Package
+Title: Article Data Analysis and Visualization with Package
+Version: 0.1.0
+Author: 10883408
+Maintainer: 10883408 <10883408@plymouth.ac.uk>
+Description: The package_10883408 made for text analysis. It is perfect for researchers 
+    because it provides essential features for analysing word frequencies in datasets.
+    It provides below features.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    dplyr,
+    tm,
+    ggplot2,
+    tidytext,
+    scales,
+    tidyr,
+    forcats,
+    lubridate,
+    gridExtra,
+    tidyverse
+RoxygenNote: 7.2.3
+Depends: 
+    R (>= 2.10)
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
