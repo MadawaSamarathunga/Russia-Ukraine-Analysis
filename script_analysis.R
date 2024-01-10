@@ -3,17 +3,20 @@ install.packages("readr")
 install.packages("tm")
 install.packages("lubridate")
 install.packages("scales")
+install.packages("gridExtra")
 
 
 library(readr)
 library(dplyr)
 library(tm)
-library(lubridate)#1st one
 library(ggplot2)
 library(tidytext)
 library(scales)
 library(tidyr)
-library(forcats) #2nd on#tf-df
+library(forcats)
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
 
 
 
@@ -27,12 +30,53 @@ guardian_df <- mutate(guardian_df, journal = "The Guardian")
 nyt_df <- mutate(nyt_df, journal = "The New York Times")
 
 # Combine the two DataFrames
-guardian_nyt_df <- bind_rows(guardian_df, nyt_df)
+article_data <- bind_rows(guardian_df, nyt_df)
 
 # Export the combined DataFrame to a new CSV file
-write_csv(guardian_nyt_df, "combined_Russia_Ukraine_articles.csv")
+write_csv(article_data, "combined_Russia_Ukraine_articles.csv")
 
-guardian_nyt_df
+article_data
+
+#################################################
+#simple article analysis example
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+
+analyze_articles <- function(article_data, published, journal) {
+ 
+  
+  # Date Analysis: Distribution of articles over time
+  article_data$month_year <- floor_date(article_data$published, "month")
+  articles_per_month <- article_data %>% 
+    count(month_year) %>% 
+    arrange(month_year)
+  
+  # Journal Analysis: Count of articles per journal
+  articles_per_journal <- article_data %>% 
+    count(journal)
+  
+  # Creating plots
+  
+  # Plot for Article Distribution Over Time
+  plot1 <- ggplot(articles_per_month, aes(x=month_year, y=n)) +
+    geom_bar(stat="identity", fill="steelblue") +
+    theme_minimal() +
+    labs(title="Article Distribution Over Time", x="Month", y="Number of Articles")
+  
+  # Plot for Journal Article Counts
+  plot3 <- ggplot(articles_per_journal, aes(x=reorder(journal, n), y=n)) +
+    geom_bar(stat="identity", fill="steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title="Articles per Journal", x="Journal", y="Number of Articles")
+  
+  
+  
+  grid.arrange(plot1, plot3, ncol=1)
+}
+
+analyze_articles(article_data, published, journal)
 
 
 
@@ -41,8 +85,7 @@ guardian_nyt_df
 
 word_frequency_plot <- function(article_data, articles){
 
-  # Read in the data using read_csv from the readr package
-  article_data <- read_csv("combined_Russia_Ukraine_articles.csv")
+ 
   # Tokenize the articles, remove stopwords
   articles_tokenized = article_data %>%
     unnest_tokens(word, articles) %>%
@@ -75,13 +118,13 @@ word_frequency_plot <- function(article_data, articles){
     scale_x_datetime(labels = scales::date_format(" %b "),
                      limits = c(min(proportions$published) - 1, max(proportions$published) + 1)) +
     scale_y_continuous(labels = label_percent(scale = 100)) +  # Format y-axis as percentage
-    theme(legend.position = "below")
+    theme(legend.position = "bottom")
   
   return(plot)
   
 }
 
-word_frequency_plot(guardian_nyt_df,c("civilians", "country","putin","biden","nato","russia","ukraine","war", "weapons"))
+word_frequency_plot(guardian_nyt_df,specific_words)
  
   
  
@@ -90,9 +133,7 @@ word_frequency_plot(guardian_nyt_df,c("civilians", "country","putin","biden","na
     
 calculate_and_plot_tfidf <- function(article_data,articles,journal) {
     
-    # Define the column names as strings
-    articles_column <- "articles" # replace with your actual column name
-    journal_column <- "journal" # replace with your actual column name
+   
     
     
     
@@ -154,14 +195,13 @@ plot_zipfs_law <- function(article_data,articles,journal) {
     
     # Plot log-log graph with regression line and different colors for each journal
      plot <- ggplot(zipf_data, aes(x = rank, y = tf, color = journal)) +
-      geom_line(size = 1.5) + # Line thickness
+      geom_line(size = 1.5) + 
       geom_smooth(method = "lm", size = 1, se = FALSE, color = "black", aes(group = 1)) +
       scale_x_log10() +
-      scale_y_log10(labels = scales::label_number()) + # Custom labels for y-axis
+      scale_y_log10(labels = scales::label_number()) + 
       labs(title = "Zipf's Law for Ukraine war articles in 2022 with Linear Regression",
            x = "World rank",
            y = "Term Frequency(linear regression)") +
-      
       theme_minimal() +
       theme(legend.position = "bottom")
      
